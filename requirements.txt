@@ -1,0 +1,9 @@
+# This file specifies the Python dependencies for the project.
+# It is recommended to install these in a virtual environment.
+#
+# To install, run:
+# pip install -r requirements.txt
+
+web3==6.12.2
+requests==2.31.0
+python-dotenv==1.0.1
