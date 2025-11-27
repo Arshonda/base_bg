@@ -1,6 +1,6 @@
 # base_bg: Cross-Chain Bridge Event Listener Simulation
 
-This repository contains a Python-based simulation of a validator node's event listener component for a cross-chain bridge. It is designed as a robust, well-architected example of how a real-world decentralized application's backend service might be structured. The script listens for `TokensLocked` events on a source blockchain and simulates the process of creating, signing, and submitting a corresponding `claimTokens` transaction on a destination blockchain.
+This repository contains a Python-based simulation of a validator node's event listener component for a cross-chain bridge. It is designed as a robust, well-architected example of how a real-world decentralized application's backend service might be structured. The script listens for `TokensLocked` events on a source chain and simulates the process of creating, signing, and submitting a corresponding `claimTokens` transaction on a destination chain.
 
 ## Concept
 
@@ -47,7 +47,7 @@ The script is designed with a clear separation of concerns, using multiple class
 
 -   **`BridgeConfig`**: A dedicated class for loading and validating all necessary configuration from environment variables (`.env` file). This centralizes configuration management.
 -   **`BlockchainConnector`**: A wrapper around the `web3.py` library. It abstracts the complexities of connecting to an EVM RPC endpoint, loading contract ABIs, and interacting with smart contracts. The listener uses two instances of this class: one for the source chain and one for the destination chain.
--   **`EventProcessor`**: Contains the core business logic. It takes raw event data, validates it against a set of rules (e.g., has the event been processed already?), and transforms it into a clean data structure ready for the next step.
+-   **`EventProcessor`**: Contains the core business logic. It takes raw event data, validates it against a set of rules (e.g., checking if the event nonce has already been processed), and transforms it into a clean data structure ready for the next step.
 -   **`TransactionSubmitter`**: Manages all aspects of creating and sending a transaction to the destination chain. It handles gas price estimation, account nonce management, transaction signing with the validator's private key, and (simulated) submission.
 -   **`CrossChainBridgeListener`**: The main orchestrator. It initializes all other components and runs the primary infinite loop. It is responsible for polling for new blocks, fetching events, passing them to the `EventProcessor`, and then passing the results to the `TransactionSubmitter`. It also manages persistence by saving the last scanned block number to a file.
 
@@ -72,8 +72,7 @@ Error handling is included for RPC connection issues and other potential failure
 
 ### 1. Prerequisites
 
--   Python 3.8+
--   An environment file (`.env`) to store your configuration secrets.
+-   Python 3.8 or higher
 
 ### 2. Setup
 
@@ -113,22 +112,26 @@ VALIDATOR_PRIVATE_KEY="your_validator_private_key_without_the_0x_prefix"
 
 ### 3. Running the Script
 
-Create an entry point script (e.g., `main.py`) to initialize the `CrossChainBridgeListener` and start its `run` loop. This script should also configure logging and include top-level error handling to catch critical failures during startup.
+The listener is designed to be run from an entry point script (e.g., `main.py`). This script should initialize the `CrossChainBridgeListener`, configure logging, and start its `run()` loop. Including top-level error handling is recommended to catch critical failures during startup.
 
 **Example `main.py`:**
 ```python
-# main.py - Application Entry Point
+# main.py
+"""
+Application entry point for the cross-chain bridge event listener.
 
+This script initializes the main listener class, sets up logging,
+and starts the continuous listening process.
+"""
 import logging
-from listener import CrossChainBridgeListener # Assuming the main class is in a 'listener.py' module
+from listener import CrossChainBridgeListener # Assumes the main class is in 'listener.py'
 
-# Configure basic logging to show timestamps, log level, logger name, and message
+# Configure basic logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - [%(name)s] - %(message)s'
 )
 
-# Get a specific logger for this entry point script
 logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
@@ -137,6 +140,7 @@ if __name__ == "__main__":
         logger.info("Starting cross-chain event listener...")
         listener.run()
     except Exception:
+        # Log critical errors that prevent the listener from starting
         logger.critical("A critical error occurred on startup.", exc_info=True)
 ```
 
