@@ -1,6 +1,6 @@
 # base_bg: Cross-Chain Bridge Event Listener Simulation
 
-This repository contains a Python-based simulation of a validator node's event listener component for a cross-chain bridge. It is designed to be a robust, well-architected example of how a real-world decentralized application's backend service might be structured. The script listens for `TokensLocked` events on a source blockchain and simulates the process of creating, signing, and submitting a corresponding `claimTokens` transaction on a destination blockchain.
+This repository contains a Python-based simulation of a validator node's event listener component for a cross-chain bridge. It is designed as a robust, well-architected example of how a real-world decentralized application's backend service might be structured. The script listens for `TokensLocked` events on a source blockchain and simulates the process of creating, signing, and submitting a corresponding `claimTokens` transaction on a destination blockchain.
 
 ## Concept
 
@@ -35,18 +35,18 @@ The script is designed with a clear separation of concerns, using multiple class
 +----+------------------+----+------------------+
      |                  |                       |
      v                  v                       v
-+----+-------------+ +--+-------------------+ +-+--------------------+
-| BlockchainConnector| |   EventProcessor      | | TransactionSubmitter |
-| (Web3 Wrapper)     | | (Business Logic)      | | (Transaction Sender)   |
-+--------------------+ +-----------------------+ +----------------------+
-| - Connects to RPC  | | - Parses event data   | | - Builds transactions  |
-| - Gets contracts   | | - Validates events    | | - Manages account nonce|
-|                    | | - Prepares claim data | | - Signs & sends Tx     |
-+--------------------+ +-----------------------+ +----------------------+
++----+-------------+ +--+-------------------+ +-+----------------------+
+| BlockchainConnector| |   EventProcessor      | | TransactionSubmitter   |
+| (Web3 Wrapper)     | | (Business Logic)      | | (Transaction Sender)     |
++--------------------+ +-----------------------+ +------------------------+
+| - Connects to RPC  | | - Parses event data   | | - Builds transactions    |
+| - Gets contracts   | | - Validates events    | | - Manages account nonce  |
+|                    | | - Prepares claim data | | - Signs & sends transactions |
++--------------------+ +-----------------------+ +------------------------+
 ```
 
 -   **`BridgeConfig`**: A dedicated class for loading and validating all necessary configuration from environment variables (`.env` file). This centralizes configuration management.
--   **`BlockchainConnector`**: A wrapper around the `web3.py` library. It abstracts the complexities of connecting to an EVM RPC endpoint and interacting with smart contracts. The listener uses two instances of this class: one for the source chain and one for the destination chain.
+-   **`BlockchainConnector`**: A wrapper around the `web3.py` library. It abstracts the complexities of connecting to an EVM RPC endpoint, loading contract ABIs, and interacting with smart contracts. The listener uses two instances of this class: one for the source chain and one for the destination chain.
 -   **`EventProcessor`**: Contains the core business logic. It takes raw event data, validates it against a set of rules (e.g., is it for the correct destination chain? has it been processed before?), and transforms it into a clean data structure ready for the next step.
 -   **`TransactionSubmitter`**: Manages all aspects of creating and sending a transaction to the destination chain. It handles gas price estimation, account nonce management, transaction signing with the validator's private key, and (simulated) submission.
 -   **`CrossChainBridgeListener`**: The main orchestrator. It initializes all other components and runs the primary infinite loop. It is responsible for polling for new blocks, fetching events, passing them to the `EventProcessor`, and then passing the results to the `TransactionSubmitter`. It also manages persistence by saving the last scanned block number to a file.
@@ -56,7 +56,7 @@ The script is designed with a clear separation of concerns, using multiple class
 The listener operates in a continuous loop:
 
 1.  **Initialization**: The script loads configuration from a `.env` file, establishes connections to the RPC endpoints for both the source and destination chains, and instantiates the necessary smart contract objects.
-2.  **State Restoration**: It reads a local file (`last_processed_block.dat`) to determine which block it should start scanning from. If the file doesn't exist, it starts from a recent block.
+2.  **State Restoration**: It reads a local file (`last_processed_block.dat`) to determine which block to start scanning from. This ensures that if the script restarts, it doesn't re-process old events or miss any new ones. If the file doesn't exist, it starts from a recent block.
 3.  **Polling**: The main loop begins. In each iteration, it checks the latest block number on the source chain.
 4.  **Scanning**: It defines a block range to scan (e.g., from the last processed block up to the latest block, capped at a certain step size to avoid overwhelming the RPC node).
 5.  **Event Filtering**: It uses `web3.py`'s event filtering capabilities to query the source chain for any `TokensLocked` events within that block range.
@@ -97,7 +97,7 @@ pip install -r requirements.txt
 Create a `.env` file in the root of the project and populate it with the necessary details. You can use free RPC URLs from services like Infura, Alchemy, or public nodes. **Ensure `.env` is added to your `.gitignore` file to prevent accidentally committing secrets.**
 
 **Example `.env` file:**
-```
+```dotenv
 # --- Source Chain (e.g., Ethereum Goerli Testnet) ---
 SOURCE_RPC_URL="https://goerli.infura.io/v3/YOUR_INFURA_PROJECT_ID"
 SOURCE_BRIDGE_CONTRACT_ADDRESS="0xSourceBridgeContractAddress..."
@@ -112,6 +112,25 @@ VALIDATOR_PRIVATE_KEY="your_validator_private_key_without_the_0x_prefix..."
 ```
 
 ### 3. Running the Script
+
+The main entry point of the application initializes the `CrossChainBridgeListener` and starts its main `run` loop within a `try...except` block to catch any critical failures on startup.
+
+```python
+# script.py (simplified example of the main entry point)
+
+from listener import CrossChainBridgeListener
+import logging
+
+# Basic logging setup
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(module)s] - %(message)s')
+
+if __name__ == "__main__":
+    try:
+        listener = CrossChainBridgeListener()
+        listener.run()
+    except Exception as e:
+        logging.critical(f"A critical error occurred on startup: {e}", exc_info=True)
+```
 
 Execute the main script from your terminal:
 ```bash
