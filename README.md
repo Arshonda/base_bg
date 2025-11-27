@@ -47,7 +47,7 @@ The script is designed with a clear separation of concerns, using multiple class
 
 -   **`BridgeConfig`**: A dedicated class for loading and validating all necessary configuration from environment variables (`.env` file). This centralizes configuration management.
 -   **`BlockchainConnector`**: A wrapper around the `web3.py` library. It abstracts the complexities of connecting to an EVM RPC endpoint, loading contract ABIs, and interacting with smart contracts. The listener uses two instances of this class: one for the source chain and one for the destination chain.
--   **`EventProcessor`**: Contains the core business logic. It takes raw event data, validates it against a set of rules (e.g., is it for the correct destination chain? has it been processed before?), and transforms it into a clean data structure ready for the next step.
+-   **`EventProcessor`**: Contains the core business logic. It takes raw event data, validates it against a set of rules (e.g., is it for the correct destination chain? has it already been processed?), and transforms it into a clean data structure ready for the next step.
 -   **`TransactionSubmitter`**: Manages all aspects of creating and sending a transaction to the destination chain. It handles gas price estimation, account nonce management, transaction signing with the validator's private key, and (simulated) submission.
 -   **`CrossChainBridgeListener`**: The main orchestrator. It initializes all other components and runs the primary infinite loop. It is responsible for polling for new blocks, fetching events, passing them to the `EventProcessor`, and then passing the results to the `TransactionSubmitter`. It also manages persistence by saving the last scanned block number to a file.
 
@@ -56,7 +56,7 @@ The script is designed with a clear separation of concerns, using multiple class
 The listener operates in a continuous loop:
 
 1.  **Initialization**: The script loads configuration from a `.env` file, establishes connections to the RPC endpoints for both the source and destination chains, and instantiates the necessary smart contract objects.
-2.  **State Restoration**: It reads a local file (`last_processed_block.dat`) to determine which block to start scanning from. This ensures that if the script restarts, it doesn't re-process old events or miss any new ones. If the file doesn't exist, it starts from a recent block.
+2.  **State Restoration**: It reads a local file (`last_processed_block.dat`) to determine which block to start scanning from. This ensures that if the script restarts, it doesn't process old events again or miss any new ones. If the file doesn't exist, it starts from a recent block.
 3.  **Polling**: The main loop begins. In each iteration, it checks the latest block number on the source chain.
 4.  **Scanning**: It defines a block range to scan (e.g., from the last processed block up to the latest block, capped at a certain step size to avoid overwhelming the RPC node).
 5.  **Event Filtering**: It uses `web3.py`'s event filtering capabilities to query the source chain for any `TokensLocked` events within that block range.
@@ -64,7 +64,7 @@ The listener operates in a continuous loop:
 7.  **Submission**: If an event is valid, the `EventProcessor` returns structured data, which is then passed to the `TransactionSubmitter`.
 8.  **Signing & Sending**: The `TransactionSubmitter` builds the `claimTokens` transaction, signs it with the validator's private key, and **simulates** sending it to the destination chain. In this simulation, it logs the transaction hash that *would have been* sent.
 9.  **State Update**: After scanning a range, the script updates the `last_processed_block.dat` file with the latest block number it has processed.
-10. **Wait**: The script waits for a configurable interval (e.g., 15 seconds) before starting the loop again from step 3.
+10. **Pause**: The script waits for a configurable interval (e.g., 15 seconds) before starting the loop again from step 3.
 
 Error handling is included for RPC connection issues and other potential failures to ensure the listener is resilient.
 
@@ -73,7 +73,7 @@ Error handling is included for RPC connection issues and other potential failure
 ### 1. Prerequisites
 
 -   Python 3.8+
--   An `.env` file with your configuration.
+-   A `.env` file for your configuration.
 
 ### 2. Setup
 
@@ -108,21 +108,24 @@ DEST_BRIDGE_CONTRACT_ADDRESS="0xDestinationBridgeContractAddress..."
 
 # --- Validator Wallet ---
 # IMPORTANT: Use a dedicated, firewalled account. NEVER commit this file with your key.
-VALIDATOR_PRIVATE_KEY="your_validator_private_key_without_the_0x_prefix..."
+VALIDATOR_PRIVATE_KEY="your_validator_private_key_without_the_0x_prefix"
 ```
 
 ### 3. Running the Script
 
-The main entry point of the application initializes the `CrossChainBridgeListener` and starts its main `run` loop within a `try...except` block to catch any critical failures on startup.
+The application is started from a main script (e.g., `script.py`) which initializes the `CrossChainBridgeListener` and starts its `run` loop. This entry point typically includes top-level error handling to catch critical failures during startup.
 
 ```python
-# script.py (simplified example of the main entry point)
+# script.py (Example of the main application entry point)
 
 from listener import CrossChainBridgeListener
 import logging
 
-# Basic logging setup
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(module)s] - %(message)s')
+# Configure basic logging
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - [%(name)s] - %(message)s'
+)
 
 if __name__ == "__main__":
     try:
@@ -130,6 +133,7 @@ if __name__ == "__main__":
         listener.run()
     except Exception as e:
         logging.critical(f"A critical error occurred on startup: {e}", exc_info=True)
+
 ```
 
 Execute the main script from your terminal:
@@ -140,21 +144,21 @@ python script.py
 The listener will start, and you will see logs indicating its activity, such as connecting to the blockchains, scanning block ranges, and processing events.
 
 **Example Output:**
-```
-2023-10-27 15:30:00 - INFO - [bridge_config] - Loading configuration from environment variables...
-2023-10-27 15:30:00 - INFO - [bridge_config] - Configuration loaded successfully. Validator Address: 0x...
-2023-10-27 15:30:00 - INFO - [blockchain_connector] - Connecting to SourceChain chain at https://goerli.infura.io/v3/...
-2023-10-27 15:30:02 - INFO - [blockchain_connector] - Successfully connected to SourceChain. Chain ID: 5
-2023-10-27 15:30:02 - INFO - [blockchain_connector] - Connecting to DestinationChain chain at https://polygon-mumbai.infura.io/v3/...
-2023-10-27 15:30:04 - INFO - [blockchain_connector] - Successfully connected to DestinationChain. Chain ID: 80001
-2023-10-27 15:30:04 - INFO - [script] - Starting cross-chain event listener...
-2023-10-27 15:30:05 - INFO - [script] - Scanning for 'TokensLocked' events from block 9814501 to 9819501.
-2023-10-27 15:30:08 - INFO - [script] - Found 1 new event(s) in the specified block range.
-2023-10-27 15:30:08 - INFO - [event_processor] - Processing event from Tx 0x... (Log Index: 45) with nonce 123.
-2023-10-27 15:30:08 - INFO - [event_processor] - Event validation successful for nonce 123. Preparing claim transaction.
-2023-10-27 15:30:09 - INFO - [transaction_submitter] - Building claim transaction for nonce 123 with account nonce 42.
-2023-10-27 15:30:10 - INFO - [transaction_submitter] - [SIMULATED] Transaction sent. Tx Hash: 0x...
-2023-10-27 15:30:12 - INFO - [script] - Scanning for 'TokensLocked' events from block 9819502 to 9824502.
-2023-10-27 15:30:15 - INFO - [script] - No new events found in this range.
-...
-```
+> ```
+> 2023-10-27 15:30:00 - INFO - [bridge_config] - Loading configuration from environment variables...
+> 2023-10-27 15:30:00 - INFO - [bridge_config] - Configuration loaded successfully. Validator Address: 0x...
+> 2023-10-27 15:30:00 - INFO - [blockchain_connector] - Connecting to SourceChain chain at https://goerli.infura.io/v3/...
+> 2023-10-27 15:30:02 - INFO - [blockchain_connector] - Successfully connected to SourceChain. Chain ID: 5
+> 2023-10-27 15:30:02 - INFO - [blockchain_connector] - Connecting to DestinationChain chain at https://polygon-mumbai.infura.io/v3/...
+> 2023-10-27 15:30:04 - INFO - [blockchain_connector] - Successfully connected to DestinationChain. Chain ID: 80001
+> 2023-10-27 15:30:04 - INFO - [script] - Starting cross-chain event listener...
+> 2023-10-27 15:30:05 - INFO - [script] - Scanning for 'TokensLocked' events from block 9814501 to 9819501.
+> 2023-10-27 15:30:08 - INFO - [script] - Found 1 new event(s) in the specified block range.
+> 2023-10-27 15:30:08 - INFO - [event_processor] - Processing event from Tx 0x... (Log Index: 45) with nonce 123.
+> 2023-10-27 15:30:08 - INFO - [event_processor] - Event validation successful for nonce 123. Preparing claim transaction.
+> 2023-10-27 15:30:09 - INFO - [transaction_submitter] - Building claim transaction for nonce 123 with account nonce 42.
+> 2023-10-27 15:30:10 - INFO - [transaction_submitter] - [SIMULATED] Transaction sent. Tx Hash: 0x...
+> 2023-10-27 15:30:12 - INFO - [script] - Scanning for 'TokensLocked' events from block 9819502 to 9824502.
+> 2023-10-27 15:30:15 - INFO - [script] - No new events found in this range.
+> ...
+> ```
