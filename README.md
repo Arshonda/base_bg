@@ -46,7 +46,7 @@ The script is designed with a clear separation of concerns, using multiple class
 ```
 
 -   **`BridgeConfig`**: A dedicated class for loading and validating all necessary configuration from environment variables (`.env` file). This centralizes configuration management.
--   **`BlockchainConnector`**: A wrapper around the `web3.py` library. It abstracts the complexities of connecting to an EVM RPC endpoint, loading contract ABIs, and interacting with smart contracts. The listener uses two instances of this class: one for the source chain and one for the destination chain.
+-   **`BlockchainConnector`**: A wrapper around the `web3.py` library. It abstracts away the complexities of connecting to an EVM RPC endpoint, loading contract ABIs, and interacting with smart contracts. The listener uses two instances of this class: one for the source chain and one for the destination chain.
 -   **`EventProcessor`**: Contains the core business logic. It takes raw event data, validates it against a set of rules (e.g., checking if the event nonce has already been processed), and transforms it into a clean data structure ready for the next step.
 -   **`TransactionSubmitter`**: Manages all aspects of creating and sending a transaction to the destination chain. It handles gas price estimation, account nonce management, transaction signing with the validator's private key, and (simulated) submission.
 -   **`CrossChainBridgeListener`**: The main orchestrator. It initializes all other components and runs the primary infinite loop. It is responsible for polling for new blocks, fetching events, passing them to the `EventProcessor`, and then passing the results to the `TransactionSubmitter`. It also manages persistence by saving the last scanned block number to a file.
@@ -93,7 +93,7 @@ Install the required dependencies:
 pip install -r requirements.txt
 ```
 
-Create a `.env` file in the root of the project and populate it with the necessary details. You can use free RPC URLs from services like Infura, Alchemy, or public nodes. **Ensure the `.env` file is added to your `.gitignore` file to prevent accidentally committing secrets.**
+Create a `.env` file in the root of the project and populate it with the necessary details. You can use free RPC URLs from services like Infura, Alchemy, or public nodes. **Ensure the `.env` file is added to your `.gitignore` to prevent committing secrets.**
 
 **Example `.env` file:**
 ```dotenv
