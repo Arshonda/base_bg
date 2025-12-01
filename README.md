@@ -1,6 +1,6 @@
 # base_bg: Cross-Chain Bridge Event Listener Simulation
 
-This repository contains a Python-based simulation of a validator node's event listener component for a cross-chain bridge. It is designed as a robust, well-architected example of how a real-world decentralized application's backend service might be structured. The script listens for `TokensLocked` events on a source chain and simulates the process of creating, signing, and submitting a corresponding `claimTokens` transaction on a destination chain.
+This repository contains a Python-based simulation of a validator node's event listener component for a cross-chain bridge. It serves as a robust, well-architected blueprint for how a real-world decentralized application's backend service might be structured. The script listens for `TokensLocked` events on a source chain and simulates the process of creating, signing, and submitting a corresponding `claimTokens` transaction on a destination chain.
 
 ## Concept
 
@@ -78,7 +78,7 @@ Error handling is included for RPC connection issues and other potential failure
 
 Clone the repository:
 ```bash
-git clone <repository_url>
+git clone https://github.com/your-username/base_bg.git
 cd base_bg
 ```
 
@@ -93,19 +93,20 @@ Install the required dependencies:
 pip install -r requirements.txt
 ```
 
-Create a `.env` file in the root of the project and populate it with the necessary details. You can use free RPC URLs from services like Infura, Alchemy, or public nodes. **Ensure `.env` is added to your `.gitignore` file to prevent accidentally committing secrets.**
+Create a `.env` file in the root of the project and populate it with the necessary details. You can use free RPC URLs from services like Infura, Alchemy, or public nodes. **Ensure the `.env` file is added to your `.gitignore` file to prevent accidentally committing secrets.**
 
 **Example `.env` file:**
 ```dotenv
-# --- Source Chain (e.g., Ethereum Goerli Testnet) ---
+# --- Source Chain (where tokens are locked, e.g., Ethereum Goerli) ---
 SOURCE_RPC_URL="https://goerli.infura.io/v3/YOUR_INFURA_PROJECT_ID"
 SOURCE_BRIDGE_CONTRACT_ADDRESS="0xSourceBridgeContractAddress..."
 
-# --- Destination Chain (e.g., Polygon Mumbai Testnet) ---
+# --- Destination Chain (where tokens are claimed, e.g., Polygon Mumbai) ---
 DEST_RPC_URL="https://polygon-mumbai.infura.io/v3/YOUR_INFURA_PROJECT_ID"
 DEST_BRIDGE_CONTRACT_ADDRESS="0xDestinationBridgeContractAddress..."
 
 # --- Validator Wallet ---
+# The private key of the account that will sign and submit the claim transactions.
 # IMPORTANT: Use a dedicated, firewalled account. NEVER commit this file with your key.
 VALIDATOR_PRIVATE_KEY="your_validator_private_key_without_the_0x_prefix"
 ```
@@ -138,6 +139,7 @@ if __name__ == "__main__":
     try:
         listener = CrossChainBridgeListener()
         logger.info("Starting cross-chain event listener...")
+        # The run() method contains the main infinite loop and will block execution.
         listener.run()
     except Exception:
         # Log critical errors that prevent the listener from starting
@@ -152,21 +154,21 @@ python main.py
 The listener will start, and you will see logs indicating its activity, such as connecting to the blockchains, scanning block ranges, and processing events.
 
 **Example Output:**
-> ```
-> 2023-10-27 15:30:00 - INFO - [bridge_config] - Loading configuration from environment variables...
-> 2023-10-27 15:30:00 - INFO - [bridge_config] - Configuration loaded successfully. Validator Address: 0x...
-> 2023-10-27 15:30:00 - INFO - [blockchain_connector] - Connecting to SourceChain chain at https://goerli.infura.io/v3/...
-> 2023-10-27 15:30:02 - INFO - [blockchain_connector] - Successfully connected to SourceChain. Chain ID: 5
-> 2023-10-27 15:30:02 - INFO - [blockchain_connector] - Connecting to DestinationChain chain at https://polygon-mumbai.infura.io/v3/...
-> 2023-10-27 15:30:04 - INFO - [blockchain_connector] - Successfully connected to DestinationChain. Chain ID: 80001
-> 2023-10-27 15:30:04 - INFO - [__main__] - Starting cross-chain event listener...
-> 2023-10-27 15:30:05 - INFO - [listener] - Scanning for 'TokensLocked' events from block 9814501 to 9819501.
-> 2023-10-27 15:30:08 - INFO - [listener] - Found 1 new event(s) in the specified block range.
-> 2023-10-27 15:30:08 - INFO - [event_processor] - Processing event from Tx 0x... (Log Index: 45) with nonce 123.
-> 2023-10-27 15:30:08 - INFO - [event_processor] - Event validation successful for nonce 123. Preparing claim transaction.
-> 2023-10-27 15:30:09 - INFO - [transaction_submitter] - Building claim transaction for nonce 123 with account nonce 42.
-> 2023-10-27 15:30:10 - INFO - [transaction_submitter] - [SIMULATED] Transaction sent. Tx Hash: 0x...
-> 2023-10-27 15:30:12 - INFO - [listener] - Scanning for 'TokensLocked' events from block 9819502 to 9824502.
-> 2023-10-27 15:30:15 - INFO - [listener] - No new events found in this range.
-> ...
-> ```
+```console
+2023-10-27 15:30:00 - INFO - [bridge_config] - Loading configuration from environment variables...
+2023-10-27 15:30:00 - INFO - [bridge_config] - Configuration loaded successfully. Validator Address: 0x...
+2023-10-27 15:30:00 - INFO - [blockchain_connector] - Connecting to SourceChain chain at https://goerli.infura.io/v3/...
+2023-10-27 15:30:02 - INFO - [blockchain_connector] - Successfully connected to SourceChain. Chain ID: 5
+2023-10-27 15:30:02 - INFO - [blockchain_connector] - Connecting to DestinationChain chain at https://polygon-mumbai.infura.io/v3/...
+2023-10-27 15:30:04 - INFO - [blockchain_connector] - Successfully connected to DestinationChain. Chain ID: 80001
+2023-10-27 15:30:04 - INFO - [__main__] - Starting cross-chain event listener...
+2023-10-27 15:30:05 - INFO - [listener] - Scanning for 'TokensLocked' events from block 9814501 to 9819501.
+2023-10-27 15:30:08 - INFO - [listener] - Found 1 new event(s) in the specified block range.
+2023-10-27 15:30:08 - INFO - [event_processor] - Processing event from Tx 0x... (Log Index: 45) with nonce 123.
+2023-10-27 15:30:08 - INFO - [event_processor] - Event validation successful for nonce 123. Preparing claim transaction.
+2023-10-27 15:30:09 - INFO - [transaction_submitter] - Building claim transaction for nonce 123 with account nonce 42.
+2023-10-27 15:30:10 - INFO - [transaction_submitter] - [SIMULATED] Transaction sent. Tx Hash: 0x...
+2023-10-27 15:30:12 - INFO - [listener] - Scanning for 'TokensLocked' events from block 9819502 to 9824502.
+2023-10-27 15:30:15 - INFO - [listener] - No new events found in this range.
+...
+```
